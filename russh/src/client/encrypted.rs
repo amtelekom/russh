@@ -526,6 +526,7 @@ impl Session {
                 );
                 match req {
                     b"xon-xoff" => {
+                        self.activity = false;
                         r.read_byte().map_err(crate::Error::from)?; // should be 0.
                         let client_can_do = r.read_byte().map_err(crate::Error::from)? != 0;
                         if let Some(chan) = self.channels.get(&channel_num) {
@@ -572,6 +573,7 @@ impl Session {
                             .await
                     }
                     b"keepalive@openssh.com" => {
+                        self.activity = false;
                         let wants_reply = r.read_byte().map_err(crate::Error::from)?;
                         if wants_reply == 1 {
                             if let Some(ref mut enc) = self.common.encrypted {
@@ -591,6 +593,7 @@ impl Session {
                         Ok((client, self))
                     }
                     _ => {
+                        self.activity = false;
                         let wants_reply = r.read_byte().map_err(crate::Error::from)?;
                         if wants_reply == 1 {
                             if let Some(ref mut enc) = self.common.encrypted {
@@ -690,6 +693,7 @@ impl Session {
                         push_packet!(enc.write, enc.write.push(msg::REQUEST_FAILURE))
                     }
                 }
+                self.activity = false;
                 Ok((client, self))
             }
             Some(&msg::CHANNEL_SUCCESS) => {
@@ -802,7 +806,16 @@ impl Session {
                     Err(crate::Error::Inconsistent.into())
                 }
             }
+            Some(&msg::REQUEST_SUCCESS | &msg::REQUEST_FAILURE)
+                if self.server_alive_timeouts > 0 =>
+            {
+                self.activity = false;
+                // TODO what other things might need to happen in response to these two opcodes?
+                self.server_alive_timeouts = 0;
+                Ok((client, self))
+            }
             _ => {
+                self.activity = false;
                 info!("Unhandled packet: {:?}", buf);
                 Ok((client, self))
             }
