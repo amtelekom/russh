@@ -168,6 +168,10 @@ pub struct Config {
     pub max_auth_attempts: usize,
     /// Time after which the connection is garbage-collected.
     pub inactivity_timeout: Option<std::time::Duration>,
+    /// If nothing is received from the client for this amount of time, send a keepalive message.
+    pub keepalive_interval: Option<std::time::Duration>,
+    /// If this many keepalives have been sent without reply, close the connection.
+    pub keepalive_max: usize,
 }
 
 impl Default for Config {
@@ -190,6 +194,8 @@ impl Default for Config {
             preferred: Default::default(),
             max_auth_attempts: 10,
             inactivity_timeout: Some(std::time::Duration::from_secs(600)),
+            keepalive_interval: None,
+            keepalive_max: 3,
         }
     }
 }
@@ -770,6 +776,8 @@ async fn read_ssh_id<R: AsyncRead + Unpin>(
         wants_reply: false,
         disconnected: false,
         buffer: CryptoVec::new(),
+        alive_timeouts: 0,
+        received_data: false,
     })
 }
 

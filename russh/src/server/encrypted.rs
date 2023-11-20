@@ -948,6 +948,7 @@ impl Session {
                         handler.signal(channel_num, signal, self).await
                     }
                     x => {
+                        self.common.received_data = false;
                         warn!("unknown channel request {}", String::from_utf8_lossy(x));
                         self.channel_failure(channel_num);
                         Ok((handler, self))
@@ -1001,6 +1002,7 @@ impl Session {
                         Ok((h, s))
                     }
                     _ => {
+                        self.common.received_data = false;
                         if let Some(ref mut enc) = self.common.encrypted {
                             push_packet!(enc.write, {
                                 enc.write.push(msg::REQUEST_FAILURE);
@@ -1040,6 +1042,7 @@ impl Session {
                 Ok((handler, self))
             }
             m => {
+                self.common.received_data = false;
                 debug!("unknown message received: {:?}", m);
                 Ok((handler, self))
             }
